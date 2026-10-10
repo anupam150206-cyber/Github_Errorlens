@@ -1,0 +1,36 @@
+# Core RAG framework
+langchain
+langchain-community
+langchain-core
+
+# Data collection
+requests
+python-dotenv
+tqdm
+
+# Retrieval
+langchain-qdrant
+qdrant-client
+sentence-transformers
+rank-bm25
+
+# LLM API calls (install the ones you'll use)
+anthropic
+openai
+langchain-huggingface
+langchain-mistralai
+langchain-google-genai
+
+
+# Evaluation and charts
+pandas
+matplotlib
+torch
+
+# UI
+streamlit
+
+# Dev
+pytest
+ruff
+

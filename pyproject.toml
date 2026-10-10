@@ -5,7 +5,26 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic>=1.13.0",
+    "langchain>=1.4.4",
+    "langchain-community>=0.4.2",
+    "langchain-core>=1.6.9",
+    "langchain-google-genai>=4.4.0",
+    "langchain-huggingface>=1.2.3",
+    "langchain-mistralai>=1.1.6",
+    "langchain-qdrant>=1.1.0",
+    "matplotlib>=3.11.2",
+    "openai>=3.28.0",
+    "pandas>=3.0.6",
+    "pytest>=9.1.1",
     "python-dotenv>=1.2.4",
+    "qdrant-client>=1.19.1",
+    "rank-bm25>=0.2.2",
     "requests>=2.34.2",
+    "ruff>=0.17.0",
+    "sentence-transformers>=6.1.0",
+    "streamlit>=1.65.0",
+    "torch>=2.14.1",
+    "tqdm>=4.70.1",
 ]
 
