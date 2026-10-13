@@ -30,3 +30,35 @@ loader = JSONLoader(
 
 docs = loader.load()
 
+
+########### cleaning   ##### new feauture
+def clean(text):
+    kept = []
+    for line in (text or "").split("\n"):
+        if line.strip().startswith(("- [x]", "- [X]", "- [ ]")):
+            continue
+        if line.strip().startswith("### Submission checklist"):
+            continue
+        kept.append(line)
+    return "\n".join(kept).strip()
+
+for doc in docs:
+    doc.page_content = clean(doc.page_content)
+    for comment in doc.metadata["comments"]:
+        comment["body"] = clean(comment["body"])
+
+all_docs = []
+for doc in docs:
+    title = doc.metadata["title"]
+    info = {"issue_number": doc.metadata["issue_number"], "url": doc.metadata["url"]}
+
+    all_docs.append(Document(
+        page_content=title + "\n\n" + doc.page_content,
+        metadata={**info, "kind": "report"},
+    ))
+
+    for c in doc.metadata["comments"]:
+        all_docs.append(Document(
+            page_content=title + "\n\n" + c["body"],
+            metadata={**info, "kind": "comment"},
+        ))
