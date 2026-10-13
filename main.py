@@ -4,16 +4,19 @@ from langchain_google_genai import GoogleGenerativeAI
 from langchain_huggingface import ChatHuggingFace
 from langchain_community import document_loaders
 from langchain_community.document_loaders import JSONLoader
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 load_dotenv()
 
 def metadata_func(record: dict, metadata: dict) -> dict:
+    """Called once per issue. Copies the fields you want into Document.metadata."""
     metadata["issue_number"] = record["number"]
     metadata["title"] = record["title"]
     metadata["labels"] = record["labels"]
     metadata["closed_at"] = record["closed_at"]
     metadata["url"] = record["html_url"]
-    metadata["comments"] = record["comments"]
+    metadata["comments"] = record["comments"]  # kept whole for the splitting step later
     return metadata
 
 
