@@ -62,3 +62,17 @@ for doc in docs:
             page_content=title + "\n\n" + c["body"],
             metadata={**info, "kind": "comment"},
         ))
+
+
+
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1500,
+    chunk_overlap=150,
+    separators=["\n```\n", "\n\n", "\n", " "],
+)
+
+chunks = splitter.split_documents(all_docs)
+
+print(len(docs), "issues ->", len(chunks), "chunks")
+print(chunks[0].page_content[:300])
