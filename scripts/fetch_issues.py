@@ -9,8 +9,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ---------------- CONFIGURATION ----------------
-
 REPO = "langchain-ai/langchain"
 MAX_ISSUES = 6000
 START_DATE = date(2023, 1, 1)

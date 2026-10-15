@@ -6,6 +6,9 @@ from langchain_community import document_loaders
 from langchain_community.document_loaders import JSONLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+import json
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_qdrant import QdrantVectorStore
 
 load_dotenv()
 
@@ -31,7 +34,6 @@ loader = JSONLoader(
 docs = loader.load()
 
 
-########### cleaning   ##### new feauture
 def clean(text):
     kept = []
     for line in (text or "").split("\n"):
@@ -65,7 +67,6 @@ for doc in docs:
 
 
 
-
 splitter = RecursiveCharacterTextSplitter(
     chunk_size=1500,
     chunk_overlap=150,
@@ -76,3 +77,22 @@ chunks = splitter.split_documents(all_docs)
 
 print(len(docs), "issues ->", len(chunks), "chunks")
 print(chunks[0].page_content[:300])
+
+
+positives = json.load(open("eval_data/positives.json", encoding="utf-8"))
+query_issues = {p["query_issue"] for p in positives}
+index_chunks = [c for c in chunks if c.metadata["issue_number"] not in query_issues]
+print(len(index_chunks), "chunks to index")
+
+embeddings = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2",
+    encode_kwargs={"normalize_embeddings": True},
+)
+
+vector_store = QdrantVectorStore.from_documents(
+    index_chunks,
+    embeddings,
+    path="data/qdrant",
+    collection_name="issues",
+)
+print("Done. Index saved in data/qdrant")
