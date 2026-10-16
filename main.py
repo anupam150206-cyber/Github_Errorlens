@@ -96,3 +96,4 @@ vector_store = QdrantVectorStore.from_documents(
     collection_name="issues",
 )
 print("Done. Index saved in data/qdrant")
+
