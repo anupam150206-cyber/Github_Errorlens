@@ -1,62 +1,61 @@
 import json
+from datetime import date
+from pathlib import Path
 
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_qdrant import QdrantVectorStore
-from qdrant_client import QdrantClient
-from rag_engine.config import EMBED_MODEL
+from rag_engine.search import search_bm25, search_hybrid, search_vector
 
-# 1. open the saved index
-embeddings = HuggingFaceEmbeddings(
-    model_name=EMBED_MODEL,
-    encode_kwargs={"normalize_embeddings": True},
-)
-client = QdrantClient(path="data/qdrant")
-print("points in index:", client.count("issues").count)
+from rag_engine.search import search_bm25, search_hybrid, search_rerank, search_vector
 
-vector_store = QdrantVectorStore(
-    client=client,
-    collection_name="issues",
-    embedding=embeddings,
-)
+METHODS = {
+    "Hybrid + rerank (MiniLM cross-encoder)": search_rerank,
+}
 
-# 2. load the test queries
+
 tests = json.load(open("eval_data/positives.json", encoding="utf-8"))
 
+METHODS = {
+    "Baseline: MiniLM, vector search": search_vector,
+    "BM25 keyword search only": search_bm25,
+    "Hybrid: vector + BM25 (RRF)": search_hybrid,
+}
 
-# 3. search: returns issue numbers, best first, one entry per issue
-def search_issues(query, top_chunks=50):
-    results = vector_store.similarity_search(query, k=top_chunks)
-    ranked = []
-    for doc in results:
-        number = doc.metadata["issue_number"]
-        if number not in ranked:
-            ranked.append(number)
-    return ranked
+results_file = Path("results/results.md")
+results_file.parent.mkdir(exist_ok=True)
+if not results_file.exists():
+    results_file.write_text(
+        "| Config | Test cases | Hit@1 | Hit@5 | MRR | Date |\n"
+        "|---|---|---|---|---|---|\n",
+        encoding="utf-8",
+    )
 
 
-# 4. score
-hit1 = hit5 = 0
-reciprocal_ranks = []
+def score(search_function):
+    hit1 = hit5 = 0
+    rr = []
+    ranks = []
+    for t in tests:
+        found = search_function(t["query_text"])
+        answer = t["answer_issue"]
+        if answer in found:
+            rank = found.index(answer) + 1
+            rr.append(1 / rank)
+            hit1 += rank == 1
+            hit5 += rank <= 5
+        else:
+            rank = None
+            rr.append(0)
+        ranks.append(rank)
+    return hit1, hit5, sum(rr) / len(tests), ranks
 
-for t in tests:
-    ranked = search_issues(t["query_text"])
-    answer = t["answer_issue"]
 
-    if answer in ranked:
-        rank = ranked.index(answer) + 1
-        reciprocal_ranks.append(1 / rank)
-        if rank == 1:
-            hit1 += 1
-        if rank <= 5:
-            hit5 += 1
-    else:
-        rank = None
-        reciprocal_ranks.append(0)
+for name, fn in METHODS.items():
+    hit1, hit5, mrr, ranks = score(fn)
+    n = len(tests)
+    print(f"\n{name}")
+    print(f"  Hit@1 {hit1}/{n} | Hit@5 {hit5}/{n} | MRR {mrr:.2f}")
+    print("  ranks:", ranks)
 
-    print(f"#{t['query_issue']} -> expected #{answer} | found at rank: {rank}")
+    with results_file.open("a", encoding="utf-8") as f:
+        f.write(f"| {name} | {n} | {hit1}/{n} | {hit5}/{n} | {mrr:.2f} | {date.today()} |\n")
 
-n = len(tests)
-print(f"\nTest cases: {n}")
-print(f"Hit@1: {hit1}/{n} = {hit1 / n:.2f}")
-print(f"Hit@5: {hit5}/{n} = {hit5 / n:.2f}")
-print(f"MRR:   {sum(reciprocal_ranks) / n:.2f}")
+print("\nSaved rows to", results_file)
