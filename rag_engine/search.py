@@ -10,6 +10,7 @@ from rag_engine.config import EMBED_MODEL
 
 COLLECTION = "issues"
 
+
 # ---------- open the saved index ----------
 embeddings = HuggingFaceEmbeddings(
     model_name=EMBED_MODEL,
@@ -33,7 +34,8 @@ while True:
         numbers.append(p.payload["metadata"]["issue_number"])
     if offset is None:
         break
-
+# ---------- the three search methods ----------
+# each takes a question and returns issue numbers, best first, no repeats
 
 def tokenize(text):
     return re.findall(r"\w+", text.lower())
@@ -41,10 +43,6 @@ def tokenize(text):
 
 bm25 = BM25Okapi([tokenize(t) for t in texts])
 print("BM25 index built over", len(texts), "chunks")
-
-
-# ---------- the three search methods ----------
-# each takes a question and returns issue numbers, best first, no repeats
 
 def search_vector(query, top=50):
     chunks = vector_store.similarity_search(query, k=top)
@@ -78,3 +76,38 @@ def rrf(lists, k=60):
 
 def search_hybrid(query):
     return rrf([search_vector(query), search_bm25(query)])
+
+# ---------- reranking ----------
+RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"   # small and fast on CPU
+reranker = CrossEncoder(RERANK_MODEL, max_length=512)
+
+
+def candidate_chunks(query, per_method=30):
+    """Collect the best chunks from vector search and BM25.
+    Returns a dict: chunk text -> issue number (the text also removes repeats)."""
+    candidates = {}
+
+    for doc in vector_store.similarity_search(query, k=per_method):
+        candidates[doc.page_content] = doc.metadata["issue_number"]
+
+    scores = bm25.get_scores(tokenize(query))
+    for i in scores.argsort()[::-1][:per_method]:
+        candidates[texts[i]] = numbers[i]
+
+    return candidates
+
+
+def search_rerank(query, per_method=30):
+    candidates = candidate_chunks(query, per_method)
+    chunk_texts = list(candidates)
+
+    short_query = query[:600]       # the reranker reads about 512 tokens in total
+    chunk_scores = reranker.predict([(short_query, t) for t in chunk_texts])
+
+    # an issue's score = the score of its best chunk
+    issue_score = {}
+    for text, s in zip(chunk_texts, chunk_scores):
+        issue = candidates[text]
+        issue_score[issue] = max(issue_score.get(issue, float("-inf")), float(s))
+
+    return sorted(issue_score, key=issue_score.get, reverse=True)
