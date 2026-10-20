@@ -10,8 +10,6 @@ from rag_engine.config import EMBED_MODEL
 
 COLLECTION = "issues"
 
-
-# ---------- open the saved index ----------
 embeddings = HuggingFaceEmbeddings(
     model_name=EMBED_MODEL,
     encode_kwargs={"normalize_embeddings": True},
@@ -21,7 +19,6 @@ vector_store = QdrantVectorStore(
     client=client, collection_name=COLLECTION, embedding=embeddings
 )
 
-# ---------- read all chunk texts back out (needed for keyword search) ----------
 texts, numbers = [], []
 offset = None
 while True:
@@ -34,8 +31,6 @@ while True:
         numbers.append(p.payload["metadata"]["issue_number"])
     if offset is None:
         break
-# ---------- the three search methods ----------
-# each takes a question and returns issue numbers, best first, no repeats
 
 def tokenize(text):
     return re.findall(r"\w+", text.lower())
@@ -77,8 +72,7 @@ def rrf(lists, k=60):
 def search_hybrid(query):
     return rrf([search_vector(query), search_bm25(query)])
 
-# ---------- reranking ----------
-RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"   # small and fast on CPU
+RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2" 
 reranker = CrossEncoder(RERANK_MODEL, max_length=512)
 
 
@@ -101,10 +95,10 @@ def search_rerank(query, per_method=30):
     candidates = candidate_chunks(query, per_method)
     chunk_texts = list(candidates)
 
-    short_query = query[:600]       # the reranker reads about 512 tokens in total
+    short_query = query[:600]      
     chunk_scores = reranker.predict([(short_query, t) for t in chunk_texts])
 
-    # an issue's score = the score of its best chunk
+
     issue_score = {}
     for text, s in zip(chunk_texts, chunk_scores):
         issue = candidates[text]

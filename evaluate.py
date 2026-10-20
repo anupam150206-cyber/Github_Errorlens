@@ -1,9 +1,7 @@
 import json
 from datetime import date
 from pathlib import Path
-
 from rag_engine.search import search_bm25, search_hybrid, search_vector
-
 from rag_engine.search import search_bm25, search_hybrid, search_rerank, search_vector
 
 METHODS = {
